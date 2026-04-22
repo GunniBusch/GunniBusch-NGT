@@ -186,7 +186,7 @@ class PrimitiveComparator {
       b += 8;
     }
     __m128 sum128 = _mm_add_ps(_mm256_extractf128_ps(sum256, 0), _mm256_extractf128_ps(sum256, 1));
-#else
+#elif defined(__F16C__)
     __m128 sum128 = _mm_setzero_ps();
     __m128 v;
     while (a < last) {
@@ -201,6 +201,13 @@ class PrimitiveComparator {
       a += 8;
       b += 8;
     }
+#else
+    double s = 0.0;
+    while (a < last) {
+      const double d = static_cast<double>(*a++) - static_cast<double>(*b++);
+      s += d * d;
+    }
+    return sqrt(s);
 #endif
     __m128 tmp = _mm_hadd_ps(sum128, _mm_set1_ps(0));
     double s   = _mm_cvtss_f32(_mm_shuffle_ps(tmp, tmp, _MM_SHUFFLE(0, 0, 0, 0))) +
@@ -814,7 +821,7 @@ class PrimitiveComparator {
       b += 8;
     }
     __m128 sum128 = _mm_add_ps(_mm256_extractf128_ps(sum256, 0), _mm256_extractf128_ps(sum256, 1));
-#else
+#elif defined(__F16C__)
     __m128 sum128 = _mm_setzero_ps();
     while (a < last) {
       __m128i va = _mm_load_si128(reinterpret_cast<const __m128i *>(a));
@@ -826,6 +833,12 @@ class PrimitiveComparator {
       a += 8;
       b += 8;
     }
+#else
+    double s = 0.0;
+    while (a < last) {
+      s += static_cast<double>(*a++) * static_cast<double>(*b++);
+    }
+    return s;
 #endif
     __attribute__((aligned(32))) float f[4];
     _mm_store_ps(f, sum128);
@@ -1028,7 +1041,7 @@ class PrimitiveComparator {
     __m128 am128 = _mm_add_ps(_mm256_extractf128_ps(normA, 0), _mm256_extractf128_ps(normA, 1));
     __m128 bm128 = _mm_add_ps(_mm256_extractf128_ps(normB, 0), _mm256_extractf128_ps(normB, 1));
     __m128 s128  = _mm_add_ps(_mm256_extractf128_ps(sum, 0), _mm256_extractf128_ps(sum, 1));
-#else
+#elif defined(__F16C__)
     __m128 am128 = _mm_setzero_ps();
     __m128 bm128 = _mm_setzero_ps();
     __m128 s128  = _mm_setzero_ps();
@@ -1121,6 +1134,18 @@ class PrimitiveComparator {
       b += 8;
     }
 
+#else
+    double normA = 0.0;
+    double normB = 0.0;
+    double sum   = 0.0;
+    while (a < last) {
+      const double av = static_cast<double>(*a++);
+      const double bv = static_cast<double>(*b++);
+      normA += av * av;
+      normB += bv * bv;
+      sum += av * bv;
+    }
+    return sum / sqrt(normA * normB);
 #endif
 
     __attribute__((aligned(32))) float f[4];
